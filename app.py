@@ -7,6 +7,7 @@ from ai_agents import RentalConsultant, PricingAssistant
 import os
 
 # --- Configuration --- #
+PRICELIST_PATH = os.path.join(os.path.dirname(__file__), "Pricelist_20260702.csv")
 try:
     _secret_key = st.secrets.get("GROQ_API_KEY")
 except Exception:
@@ -17,7 +18,7 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY", _secret_key or "")
 st.set_page_config(page_title="Primes & Zooms AI Assistant", layout="wide")
 st.title("Primes & Zooms AI Assistant")
 
-# Sidebar for settings and file upload
+# Sidebar for settings
 st.sidebar.header("Settings")
 
 # Groq API Key Input
@@ -28,18 +29,16 @@ if groq_api_key_input:
 else:
     st.sidebar.warning("Please enter your Groq API Key to use the AI features.")
 
-# CSV File Upload
-st.sidebar.header("Inventory Management")
-uploaded_file = st.sidebar.file_uploader("Upload your CSV Inventory File", type=["csv"])
-
-if uploaded_file is not None:
-    st.sidebar.success("CSV file uploaded successfully!")
-    st.session_state["inventory_df"] = load_inventory(uploaded_file)
+# Auto-load pricelist
+st.sidebar.header("Inventory")
+if os.path.exists(PRICELIST_PATH):
+    st.session_state["inventory_df"] = load_inventory(PRICELIST_PATH)
     if st.session_state["inventory_df"] is not None:
-        st.sidebar.write(f"Loaded {len(st.session_state["inventory_df"])} items.")
+        st.sidebar.success(f"Loaded {len(st.session_state['inventory_df'])} items from pricelist.")
     else:
-        st.sidebar.error("Failed to load inventory. Please check CSV format.")
+        st.sidebar.error("Failed to load pricelist CSV. Check format.")
 else:
+    st.sidebar.error(f"Pricelist not found: {PRICELIST_PATH}")
     st.session_state["inventory_df"] = None
 
 # Main content area
