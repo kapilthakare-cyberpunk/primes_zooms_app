@@ -98,7 +98,6 @@ st.header("New Item Pricing Band Calculator")
 st.markdown("""
 Generate rental pricing bands for new inventory items based on:
 - **Existing pricelist patterns** (learned from 1300+ items)
-- **OEM market pricing** (web search for current MRP)
 """)
 
 # Initialize pricing results in session state
@@ -188,6 +187,7 @@ if st.button("Generate Pricing Bands", type="primary"):
                 | **MRP** | ₹{result["mrp"]:,} |
                 | **Category** | {result["item_type"]} / {result["res_grp"]} |
                 | **Pricing Band** | `{result["bands_str"]}` |
+                | **Source** | {result["source"]} |
                 """)
 
 # Display accumulated results

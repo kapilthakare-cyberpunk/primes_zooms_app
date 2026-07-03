@@ -17,9 +17,6 @@ Usage:
 
     # Skip GitHub push
     python cli.py --sku "..." --name "..." --mrp 165000 --no-push
-
-    # Skip slow OEM web search
-    python cli.py --sku "..." --name "..." --mrp 165000 --skip-oem
 """
 
 import argparse
@@ -41,40 +38,33 @@ def print_banner():
     print("""
 ╔══════════════════════════════════════════════════════════════╗
 ║         Primes & Zooms - Pricing Band Generator              ║
-║         with Review Layer + OEM Market Price                 ║
 ╚══════════════════════════════════════════════════════════════╝
     """)
 
 
 def print_result(result):
-    """Pretty print a pricing band result with review + OEM."""
-    oem_str = f"₹{result['oem_price']:,}" if result.get("oem_price") else "N/A"
-    print(f"\n{'─' * 70}")
+    """Pretty print a pricing band result."""
+    print(f"\n{'─' * 60}")
     print(f"  SKU:          {result['sku']}")
     print(f"  Item:         {result['item_name']}")
     print(f"  Brand:        {result['brand'] or 'N/A'}")
     print(f"  MRP:          ₹{result['mrp']:,}")
     print(f"  Category:     {result['item_type']} / {result['res_grp']}")
     print(f"  Date:         {result['date']}")
-    print(f"{'─' * 70}")
-    print(f"  ✓ Pricing Band:  {result['bands_str']}")
-    print(f"  ◆ OEM Market:    {oem_str}")
-    print(f"  ● Verdict:       {result['review_verdict']}")
-    print(f"{'─' * 70}")
-    print(f"  Remarks:")
-    for line in result["review_remarks"].split("; "):
-        print(f"    • {line.strip()}")
-    print(f"{'─' * 70}")
+    print(f"{'─' * 60}")
+    print(f"  Pricing Band:  {result['bands_str']}")
+    print(f"  Source:        {result['source']}")
+    print(f"{'─' * 60}")
 
 
-def interactive_mode(no_push=False, skip_oem=False):
+def interactive_mode(no_push=False):
     """Interactive mode for adding items one by one."""
     print("\n  Interactive Mode - Enter item details (type 'quit' to exit)\n")
 
     results = []
 
     while True:
-        print(f"\n{'━' * 70}")
+        print(f"\n{'━' * 60}")
         sku = input("  SKU (or 'quit'): ").strip()
         if sku.lower() in ("quit", "q", "exit"):
             break
@@ -95,7 +85,7 @@ def interactive_mode(no_push=False, skip_oem=False):
             or "Mid Range"
         )
 
-        print("  Generating pricing band with review...")
+        print("  Generating pricing band...")
         result, error = generate_pricing_band(
             csv_path=PRICELIST,
             item_name=name,
@@ -104,7 +94,6 @@ def interactive_mode(no_push=False, skip_oem=False):
             brand=brand,
             item_type=item_type,
             res_grp=res_grp,
-            skip_oem=skip_oem,
         )
 
         if error:
@@ -133,7 +122,7 @@ def interactive_mode(no_push=False, skip_oem=False):
                     print(f"  {'✓' if success else '✗'} {msg}")
 
 
-def bulk_mode(csv_file, no_push=False, skip_oem=False):
+def bulk_mode(csv_file, no_push=False):
     """Process multiple items from a CSV file."""
     if not os.path.exists(csv_file):
         print(f"  ✗ File not found: {csv_file}")
@@ -168,7 +157,6 @@ def bulk_mode(csv_file, no_push=False, skip_oem=False):
                 brand=brand,
                 item_type=item_type,
                 res_grp=res_grp,
-                skip_oem=skip_oem,
             )
 
             if error:
@@ -199,7 +187,6 @@ def single_item_mode(args):
         brand=args.brand,
         item_type=args.type,
         res_grp=args.category,
-        skip_oem=args.skip_oem,
     )
 
     if error:
@@ -221,14 +208,14 @@ def single_item_mode(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Primes & Zooms - Pricing Band Generator with Review + OEM Price",
+        description="Primes & Zooms - Pricing Band Generator",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   %(prog)s --sku "CR6V" --name "Canon EOS R6 V" --mrp 208000 --brand Canon --type Body --category "Full Frame"
   %(prog)s --bulk items.csv
   %(prog)s --interactive
-  %(prog)s --sku "CR6V" --name "Canon EOS R6 V" --mrp 208000 --dry-run --skip-oem
+  %(prog)s --sku "CR6V" --name "Canon EOS R6 V" --mrp 208000 --dry-run
         """,
     )
 
@@ -253,18 +240,15 @@ Examples:
     )
     parser.add_argument("--dry-run", action="store_true", help="Preview without saving")
     parser.add_argument("--no-push", action="store_true", help="Skip GitHub push")
-    parser.add_argument(
-        "--skip-oem", action="store_true", help="Skip OEM web search (faster)"
-    )
 
     args = parser.parse_args()
 
     print_banner()
 
     if args.interactive:
-        interactive_mode(args.no_push, args.skip_oem)
+        interactive_mode(args.no_push)
     elif args.bulk:
-        bulk_mode(args.bulk, args.no_push, args.skip_oem)
+        bulk_mode(args.bulk, args.no_push)
     elif args.name:
         single_item_mode(args)
     else:

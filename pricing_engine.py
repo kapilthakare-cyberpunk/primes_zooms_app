@@ -1,73 +1,8 @@
 import csv
-import re
 import os
 import subprocess
 from datetime import datetime
 from collections import defaultdict
-from duckduckgo_search import DDGS
-
-
-# ---------------------------------------------------------------------------
-# OEM PRICE LOOKUP (web search for current India MRP)
-# ---------------------------------------------------------------------------
-
-_BRAND_DOMAINS = {
-    "Canon": "site:canon.co.in",
-    "Sony": "site:sony.co.in",
-    "Nikon": "site:nikon.co.in",
-    "Fujifilm": "site:fujifilm-x.com OR site:fujifilm-x.com/in",
-    "Panasonic": "site:panasonic.co.in",
-    "Sigma": "site:sigmaphoto.com",
-    "Tamron": "site:tamron.co.in",
-    "Zeiss": "site:zeiss.co.in OR site:zeiss.com/consumer-products",
-    "Nothing": "site:nothing.tech",
-    "Blackmagic": "site:blackmagicdesign.com",
-}
-
-_PRICE_RE = [
-    re.compile(r"₹\s*([0-9,]+)"),
-    re.compile(r"Rs\.?\s*([0-9,]+)"),
-    re.compile(r"INR\s*([0-9,]+)"),
-    re.compile(r"MRP[:\s]*₹?\s*([0-9,]+)"),
-    re.compile(r"price[:\s]*₹?\s*([0-9,]+)"),
-]
-
-
-def search_oem_price(item_name, brand=None, max_results=5):
-    """
-    Search DuckDuckGo for current India MRP of the item.
-    Returns (price_int | None, source_url | None).
-    """
-    try:
-        site_filter = _BRAND_DOMAINS.get(brand, "") if brand else ""
-        query = f"{item_name} price India MRP {site_filter}".strip()
-
-        ddgs = DDGS()
-        results = ddgs.text(keywords=query, max_results=max_results)
-
-        prices = []
-        best_url = None
-        for r in results:
-            text = f"{r.get('title', '')} {r.get('snippet', '')}"
-            for pat in _PRICE_RE:
-                for m in pat.finditer(text):
-                    try:
-                        price = int(m.group(1).replace(",", ""))
-                        if 500 < price < 5_000_000:
-                            prices.append(price)
-                            if not best_url:
-                                best_url = r.get("href", "")
-                    except ValueError:
-                        pass
-
-        if prices:
-            prices.sort()
-            return prices[len(prices) // 2], best_url  # median
-        return None, None
-
-    except Exception as e:
-        print(f"  [OEM search error: {e}]")
-        return None, None
 
 
 # ---------------------------------------------------------------------------
@@ -117,7 +52,7 @@ def _load_raw(csv_path):
 
 
 # ---------------------------------------------------------------------------
-# 2. DEEP PATTERN ANALYSIS (used by both generation and review)
+# 2. DEEP PATTERN ANALYSIS
 # ---------------------------------------------------------------------------
 
 
@@ -197,106 +132,7 @@ def format_bands(bands):
 
 
 # ---------------------------------------------------------------------------
-# 4. REVIEW LAYER — validates pricing against pricelist benchmarks
-# ---------------------------------------------------------------------------
-
-
-def review_pricing(item_type, res_grp, mrp, bands, by_type, by_key):
-    """
-    Compare proposed pricing against pricelist patterns.
-    Returns (verdict, remarks_list, flags).
-    verdict: 'OK' | 'CAUTION' | 'ADJUSTED'
-    flags: list of str (e.g. 'HIGH_1D', 'LOW_DISCOUNT')
-    """
-    remarks = []
-    flags = []
-    key = f"{item_type}|{res_grp}"
-
-    # --- A. Category benchmark ---
-    bench = _benchmarks(by_key.get(key, []))
-    if not bench:
-        bench = _benchmarks(by_type.get(item_type, []))
-    if not bench:
-        return (
-            "CAUTION",
-            ["No pricelist data for this category; pricing is best-effort"],
-            ["NO_DATA"],
-        )
-
-    ratio = bands["1d"] / mrp if mrp else 0
-
-    # Check 1-day rate vs category average
-    if ratio > bench["ratio_avg"] * 1.25:
-        flags.append("HIGH_1D")
-        remarks.append(
-            f"1d rate ₹{bands['1d']} is >25% above category avg "
-            f"(avg ratio {bench['ratio_avg']:.4f} → ₹{mrp * bench['ratio_avg']:,.0f})"
-        )
-    elif ratio < bench["ratio_avg"] * 0.75:
-        flags.append("LOW_1D")
-        remarks.append(
-            f"1d rate ₹{bands['1d']} is >25% below category avg "
-            f"(avg ratio {bench['ratio_avg']:.4f} → ₹{mrp * bench['ratio_avg']:,.0f})"
-        )
-    else:
-        remarks.append(
-            f"1d rate aligns with category avg (ratio {ratio:.4f} vs avg {bench['ratio_avg']:.4f})"
-        )
-
-    # --- B. MRP range check ---
-    if mrp > bench["mrp_max"] * 1.5:
-        flags.append("MRP_OUTLIER_HIGH")
-        remarks.append(
-            f"MRP ₹{mrp:,.0f} is above category range "
-            f"(₹{bench['mrp_min']:,.0f}–₹{bench['mrp_max']:,.0f}); "
-            f"consider if high-value items need premium pricing"
-        )
-    elif mrp < bench["mrp_min"] * 0.5:
-        flags.append("MRP_OUTLIER_LOW")
-        remarks.append(
-            f"MRP ₹{mrp:,.0f} is below category range "
-            f"(₹{bench['mrp_min']:,.0f}–₹{bench['mrp_max']:,.0f})"
-        )
-
-    # --- C. Discount curve sanity ---
-    disc_deviation = (
-        abs(bands["2d"] / bands["1d"] - bench["disc2_avg"]) if bands["1d"] else 0
-    )
-    if disc_deviation > 0.15:
-        flags.append("DISCOUNT_CURVE_OFF")
-        remarks.append(
-            f"2d/1d discount ratio {bands['2d'] / bands['1d']:.3f} deviates from "
-            f"category avg {bench['disc2_avg']:.3f}"
-        )
-
-    # --- D. Edge cases: very low MRP items ---
-    if mrp < 10000:
-        flags.append("LOW_MRP")
-        remarks.append(
-            "Low-MRP item; 1d rate may floor at ₹50–100 minimum "
-            "regardless of ratio calculation"
-        )
-
-    # --- E. Video/specialty equipment premium hint ---
-    if item_type in ("Body",) and "Video" in (res_grp or ""):
-        flags.append("VIDEO_GEAR")
-        remarks.append(
-            "Video camera category; verify if cinema-grade pricing premium applies"
-        )
-
-    # --- F. Final verdict ---
-    if "HIGH_1D" in flags or "MRP_OUTLIER_HIGH" in flags:
-        verdict = "CAUTION"
-    elif "DISCOUNT_CURVE_OFF" in flags:
-        verdict = "CAUTION"
-    else:
-        verdict = "OK"
-
-    return verdict, remarks, flags
-
-
-# ---------------------------------------------------------------------------
-# 5. GENERATE PRICING (orchestrates pattern + calculation + review)
+# 4. GENERATE PRICING (orchestrates pattern + calculation)
 # ---------------------------------------------------------------------------
 
 
@@ -308,22 +144,15 @@ def generate_pricing_band(
     brand=None,
     item_type="Lens",
     res_grp="Mid Range",
-    skip_oem=False,
 ):
     """
-    Generate pricing band with review + OEM market price.
+    Generate pricing band from pricelist patterns.
     Returns (result_dict, error_str).
     """
     all_rows, by_type, by_key = analyze_patterns(csv_path)
 
     if not mrp or mrp == 0:
-        return None, "MRP must be provided (auto-lookup disabled for speed)"
-
-    # --- OEM market price lookup ---
-    oem_price = None
-    oem_source = None
-    if not skip_oem:
-        oem_price, oem_source = search_oem_price(item_name, brand)
+        return None, "MRP must be provided"
 
     # --- Band calculation ---
     key = f"{item_type}|{res_grp}"
@@ -343,35 +172,6 @@ def generate_pricing_band(
 
     bands = calculate_bands(mrp, ratio, disc2, disc5, disc9)
 
-    # --- Review ---
-    verdict, remarks, flags = review_pricing(
-        item_type, res_grp, mrp, bands, by_type, by_key
-    )
-
-    remarks.insert(0, f"Pattern source: {source}")
-
-    # --- OEM price comparison ---
-    oem_note = "No OEM data found"
-    if oem_price:
-        diff = oem_price - mrp
-        pct = (diff / mrp * 100) if mrp else 0
-        if abs(pct) < 5:
-            oem_note = f"OEM {oem_price:,} matches your MRP (Δ{pct:+.1f}%)"
-        elif pct > 0:
-            oem_note = f"OEM {oem_price:,} — your MRP is {abs(pct):.1f}% below market"
-        else:
-            oem_note = f"OEM {oem_price:,} — your MRP is {abs(pct):.1f}% above market"
-        remarks.append(oem_note)
-        if oem_source:
-            remarks.append(f"OEM source: {oem_source}")
-    else:
-        remarks.append(oem_note)
-
-    if verdict == "OK":
-        remarks.insert(1, "Verdict: Pricing is within expected range for this category")
-    else:
-        remarks.insert(1, f"Verdict: {verdict} — review flagged: {', '.join(flags)}")
-
     return {
         "sku": sku,
         "item_name": item_name,
@@ -381,17 +181,13 @@ def generate_pricing_band(
         "res_grp": res_grp,
         "bands": bands,
         "bands_str": format_bands(bands),
-        "oem_price": oem_price,
-        "oem_source": oem_source or "",
         "date": datetime.now().strftime("%Y-%m-%d"),
-        "review_verdict": verdict,
-        "review_remarks": "; ".join(remarks),
-        "review_flags": ",".join(flags) if flags else "NONE",
+        "source": source,
     }, None
 
 
 # ---------------------------------------------------------------------------
-# 6. SAVE / PUSH
+# 5. SAVE / PUSH
 # ---------------------------------------------------------------------------
 
 
@@ -411,20 +207,10 @@ def save_to_csv(results, csv_path="pricing_bands.csv"):
             "Item Name": r["item_name"],
             "Date": r["date"],
             "Pricing Band": r["bands_str"],
-            "OEM Price": f"₹{r['oem_price']:,}" if r.get("oem_price") else "N/A",
-            "Remarks": r.get("review_remarks", ""),
         }
         existing.append(entry)
 
-    fieldnames = [
-        "Sr No",
-        "SKU",
-        "Item Name",
-        "Date",
-        "Pricing Band",
-        "OEM Price",
-        "Remarks",
-    ]
+    fieldnames = ["Sr No", "SKU", "Item Name", "Date", "Pricing Band"]
     with open(full_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
