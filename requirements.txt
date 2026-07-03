@@ -4,3 +4,5 @@ groq
 duckduckgo_search
 python-telegram-bot
 python-dotenv
+requests
+beautifulsoup4

@@ -1,7 +1,16 @@
 #!/bin/bash
 
+# Create virtual environment if it doesn't exist
+if [ ! -d "venv" ]; then
+    echo "Creating virtual environment..."
+    python3 -m venv venv
+fi
+
+# Activate virtual environment
+source venv/bin/activate
+
 # Install dependencies
-sudo pip install -r requirements.txt
+pip install -r requirements.txt
 
 # Run the Streamlit app
 streamlit run app.py
