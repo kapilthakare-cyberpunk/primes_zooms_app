@@ -1,7 +1,6 @@
-Sr No,SKU,Item Name,Date,Pricing Band,OEM Price,Remarks
-1,CR6V,Canon EOS R6 V,2026-07-03,"1d-1950,2d-1750,5d-1600,9d-1500",N/A,Pattern source: learned from 40 items in Body|Full Frame; Verdict: Pricing is within expected range for this category; 1d rate aligns with category avg (ratio 0.0094 vs avg 0.0094); No OEM data found
-2,ZSFL1250,Zeiss 12x50 SFL Binoculars,2026-07-03,"1d-2800,2d-2450,5d-2100,9d-1950",N/A,"Pattern source: learned from 5 items in Binoculars|Accessories; Verdict: CAUTION — review flagged: MRP_OUTLIER_HIGH; 1d rate aligns with category avg (ratio 0.0263 vs avg 0.0263); MRP ₹106,500 is above category range (₹6,000–₹50,000); consider if high-value items need premium pricing; No OEM data found"
-3,ZSFL840,Zeiss 8x40 SFL Binoculars,2026-07-03,"1d-2250,2d-1950,5d-1650,9d-1550",N/A,"Pattern source: learned from 5 items in Binoculars|Accessories; Verdict: CAUTION — review flagged: MRP_OUTLIER_HIGH; 1d rate aligns with category avg (ratio 0.0265 vs avg 0.0263); MRP ₹85,000 is above category range (₹6,000–₹50,000); consider if high-value items need premium pricing; No OEM data found"
-4,NTHP3256,Nothing Phone 3,2026-07-03,"1d-500,2d-400,5d-350,9d-350",N/A,Pattern source: learned from 8 items in Mobile Phone|Gadgets; Verdict: Pricing is within expected range for this category; 1d rate aligns with category avg (ratio 0.0091 vs avg 0.0088); No OEM data found
-5,BKPP,Professional Photography by Ananda Jagoda,2026-07-03,"1d-550,2d-500,5d-450,9d-400",N/A,Pattern source: learned from 19 items in Books|Books; Verdict: Pricing is within expected range for this category; 1d rate aligns with category avg (ratio 0.0579 vs avg 0.0585); Low-MRP item; 1d rate may floor at ₹50–100 minimum regardless of ratio calculation; No OEM data found
-6,SBCQZ1NPFZ100,Sony BC-QZ1 Battery Charger,2026-07-03,"1d-300,2d-250,5d-250,9d-200",N/A,Pattern source: learned from 5 items in Battery Charger|Accessories; Verdict: Pricing is within expected range for this category; 1d rate aligns with category avg (ratio 0.0531 vs avg 0.0498); Low-MRP item; 1d rate may floor at ₹50–100 minimum regardless of ratio calculation; No OEM data found
+Sr No,SKU,Item Name,Date,Pricing Band
+1,CR6V,Canon EOS R6 V,2026-07-03,"1d-1950,2d-1750,5d-1600,9d-1500"
+2,ZSFL1250,Zeiss 12x50 SFL Binoculars,2026-07-03,"1d-1000,2d-850,5d-750,9d-700"
+3,ZSFL840,Zeiss 8x40 SFL Binoculars,2026-07-03,"1d-800,2d-700,5d-600,9d-550"
+4,NTHP3256,Nothing Phone 3,2026-07-03,"1d-650,2d-550,5d-450,9d-400"
+5,SBCQZ1NPFZ100,Sony BC-QZ1 Battery Charger,2026-07-03,"1d-300,2d-250,5d-250,9d-200"
